@@ -15,3 +15,26 @@ use_repo(
 bazel_dep(name = "rules_proto", version = "7.1.0")
 bazel_dep(name = "rules_proto_grpc", version = "5.0.1")
 bazel_dep(name = "rules_proto_grpc_go", version = "5.0.1")
+bazel_dep(name = "rules_rust", version = "0.59.2")
+
+rust = use_extension("@rules_rust//rust:extensions.bzl", "rust")
+rust.toolchain(edition = "2024")
+use_repo(rust, "rust_toolchains")
+
+register_toolchains("@rust_toolchains//:all")
+
+crate = use_extension("@rules_rust//crate_universe:extensions.bzl", "crate")
+crate.spec(
+    package = "anyhow",
+    version = "1.0.97",
+)
+crate.spec(
+    # NOTE: v4 is not available in no-std and by default, std is enabled in uuid
+    # so if this fails to build, then default_features default value is False
+    # see https://docs.rs/uuid/1.8.0/uuid/#embedded
+    features = ["v4"],
+    package = "uuid",
+    version = "1.16.0",
+)
+crate.from_specs()
+use_repo(crate, "crates")
