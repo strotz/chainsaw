@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package chainsaw.link.def;
+
+option go_package = "github.com/strotz/chainsaw/link/def";
+
+message NoOp {}
+
+service Chain {
+  rpc Do(NoOp) returns (NoOp) {}
+}

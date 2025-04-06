@@ -1,17 +1,5 @@
 load("@gazelle//:def.bzl", "gazelle")
-load("@rules_go//go:def.bzl", "go_binary", "go_library")
 
 gazelle(name = "gazelle")
 
-go_library(
-    name = "chainsaw_lib",
-    srcs = ["main.go"],
-    importpath = "github.com/strotz/chainsaw",
-    visibility = ["//visibility:private"],
-)
-
-go_binary(
-    name = "chainsaw",
-    embed = [":chainsaw_lib"],
-    visibility = ["//visibility:public"],
-)
+# gazelle:prefix github.com/strotz/chainsaw

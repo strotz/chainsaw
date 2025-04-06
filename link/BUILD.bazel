@@ -1,0 +1,15 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "link",
+    srcs = ["server.go"],
+    importpath = "github.com/strotz/chainsaw/link",
+    visibility = ["//visibility:public"],
+    deps = ["//link/def"],
+)
+
+go_test(
+    name = "link_test",
+    srcs = ["server_test.go"],
+    embed = [":link"],
+)
