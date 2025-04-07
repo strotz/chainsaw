@@ -18,6 +18,7 @@ go_proto_library(
 
 go_library(
     name = "def",
+    srcs = ["empty.go"],
     embed = [":def_go_proto"],
     importpath = "github.com/strotz/chainsaw/link/def",
     visibility = ["//visibility:public"],

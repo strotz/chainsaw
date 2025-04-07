@@ -1,5 +1,5 @@
 load("@gazelle//:def.bzl", "gazelle")
 
-gazelle(name = "gazelle")
-
 # gazelle:prefix github.com/strotz/chainsaw
+
+gazelle(name = "gazelle")
