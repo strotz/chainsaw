@@ -4,8 +4,27 @@ package chainsaw.link.def;
 
 option go_package = "github.com/strotz/chainsaw/link/def";
 
+message CallId {
+  string id = 1;
+}
+
 message NoOp {}
 
+message CommandRequest {
+  CallId call_id = 1;
+  oneof command {
+    NoOp no_op = 2;
+  }
+}
+
+message CommandResponse {
+  CallId call_id = 1;
+  oneof response {
+    NoOp no_op = 2;
+  }
+}
+
+// TODO: it should be async streaming. Currently, it is a blocking call.
 service Chain {
-  rpc Do(NoOp) returns (NoOp) {}
+  rpc Do(CommandRequest) returns (CommandResponse) {}
 }
