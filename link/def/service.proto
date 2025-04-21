@@ -4,8 +4,29 @@ package chainsaw.link.def;
 
 option go_package = "github.com/strotz/chainsaw/link/def";
 
+message CallId {
+  string id = 1;
+}
+
 message NoOp {}
 
+// TODO: it feels like it has to be some sort of generic message exchange streaming service with another layer that
+// implements message exchange envelope. Yet, let's shortcut it for now and use oneof with predefined messages.
+
+message StatusRequest {}
+
+message StatusResponse {}
+
+message Event {
+  CallId call_id = 1;
+  oneof payload {
+    NoOp no_op = 2;
+    StatusRequest status_request = 3;
+    StatusResponse status_response = 4;
+  }
+}
+
+// It is generic bi-directional streaming.
 service Chain {
-  rpc Do(NoOp) returns (NoOp) {}
+  rpc Do(stream Event) returns (stream Event) {}
 }
