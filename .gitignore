@@ -1,2 +1,4 @@
 /bazel-*
 /target
+# User-specific Bazel configuration
+user.bazelrc
