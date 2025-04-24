@@ -9,7 +9,10 @@ go_library(
     ],
     importpath = "github.com/strotz/chainsaw/link",
     visibility = ["//visibility:public"],
-    deps = ["//link/def"],
+    deps = [
+        "//link/def",
+        "@org_golang_google_grpc//:grpc",
+    ],
 )
 
 gomock(
