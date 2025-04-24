@@ -17,7 +17,7 @@ func TestCompileClient(t *testing.T) {
 	defer ctrl.Finish()
 
 	c := NewMockChainClient(ctrl)
-	cli.transport = c
+	cli.chain = c
 
 	in := &def.Event_StatusRequest{}
 	out := &def.Event_StatusResponse{}
