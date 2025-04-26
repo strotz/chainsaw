@@ -1,8 +1,12 @@
 package link
 
 import (
+	"context"
 	"errors"
 	"flag"
+	"io"
+	"log"
+	"sync"
 
 	"github.com/strotz/chainsaw/link/def"
 	"google.golang.org/grpc"
@@ -33,6 +37,52 @@ func NewClient() (*Client, error) {
 		conn:  c,
 		chain: chain,
 	}, nil
+}
+
+func (c Client) Run(ctx context.Context) error {
+	if c.conn == nil {
+		return ErrNotConnected
+	}
+	stream, err := c.chain.Do(ctx)
+	if err != nil {
+		return err
+	}
+	var wg sync.WaitGroup
+
+	// Loop to receive messages
+	wg.Add(1)
+	go func() {
+		for {
+			in, err := stream.Recv()
+			if err == io.EOF {
+				// The server has closed the stream
+				wg.Done()
+				return
+			}
+			if err != nil {
+				log.Fatalln("Error receiving message:", err)
+			}
+			// Process the received message
+			log.Println("Received message:", in.String())
+		}
+	}()
+
+	// Loop to send messages
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		// TODO: should this error be handled?
+		defer stream.CloseSend()
+		select {
+		case <-ctx.Done():
+			return
+			// TODO: send a message to the server
+		}
+	}()
+
+	// Wait for both send and receive to finish
+	wg.Wait()
+	return nil
 }
 
 func (c *Client) SendAndReceive(in *def.Event_StatusRequest, out *def.Event_StatusResponse) error {

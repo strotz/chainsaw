@@ -8,6 +8,7 @@ go_test(
     ],
     deps = [
         "//link",
+        "//link/def",
         "//link/serverfixture",
         "//link/tests",
         "@com_github_stretchr_testify//require",
