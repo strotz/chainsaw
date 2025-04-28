@@ -11,11 +11,14 @@ import (
 var _ def.ChainClient = (*MockChainClient)(nil)
 
 func TestCompileClient(t *testing.T) {
-	cli := &Client{}
+	cli := &Client{
+		queueIn: make(chan *def.Event, 1), // To unblock SendAndReceive
+	}
 
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
+	// TODO: it should be another set of test to cover Run function
 	c := NewMockChainClient(ctrl)
 	cli.chain = c
 

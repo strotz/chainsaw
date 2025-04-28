@@ -3,7 +3,9 @@ package link
 import (
 	"flag"
 	"fmt"
+	"io"
 	"log"
+	"log/slog"
 	"net"
 
 	"github.com/strotz/chainsaw/link/def"
@@ -21,8 +23,28 @@ type Server struct {
 type imp struct{}
 
 func (i *imp) Do(server def.Chain_DoServer) error {
-	//TODO implement me
-	panic("implement me")
+	for {
+		in, err := server.Recv()
+		if err == io.EOF {
+			slog.Debug("Client closed connection with server")
+			return nil
+		}
+		if err != nil {
+			slog.Warn("Error with server connection", "error", err)
+			return err
+		}
+		slog.Debug("Received by server", "in", in)
+		// TODO: this is dirty hack to make hello test meaningful
+		if x := in.GetStatusRequest(); x != nil {
+			y := &def.Event{
+				CallId:  &def.CallId{Id: in.CallId.Id},
+				Payload: &def.Event_StatusResponse{},
+			}
+			if err := server.Send(y); err != nil {
+				return err
+			}
+		}
+	}
 }
 
 func (s *Server) Start() error {

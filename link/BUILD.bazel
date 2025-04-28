@@ -27,6 +27,7 @@ gomock(
 
 go_test(
     name = "link_test",
+    size = "small",
     srcs = [
         "client_test.go",
         "server_test.go",

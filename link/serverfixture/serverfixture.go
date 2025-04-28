@@ -20,7 +20,7 @@ func (f *Fixture) StartServer(ctx context.Context, waitDone *sync.WaitGroup) err
 	}
 	slog.Info("Server location", "location", l)
 	args := []string{}
-	slog.Info("Server args:", "args")
+	slog.Info("Server:", "args", args)
 	app, err := runner.NewProcess(ctx, l, args...)
 	if err != nil {
 		return err
