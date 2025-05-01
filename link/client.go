@@ -7,12 +7,14 @@ import (
 	"io"
 	"log"
 	"log/slog"
-	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/strotz/chainsaw/link/def"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/status"
 )
 
 var (
@@ -30,9 +32,11 @@ type Client struct {
 	AcceptedCounter atomic.Uint64
 	SentCounter     atomic.Uint64
 	ReceivedCounter atomic.Uint64
+	RetryCounter    atomic.Uint64
+	RetryDelay      time.Duration
 }
 
-var ErrNotConnected = errors.New("not connected to server")
+var ErrNotInitialized = errors.New("connection not initialized")
 
 func NewClient() (*Client, error) {
 	var opts []grpc.DialOption
@@ -44,91 +48,129 @@ func NewClient() (*Client, error) {
 	}
 	chain := def.NewChainClient(c)
 	return &Client{
-		conn:    c,
-		chain:   chain,
-		queueIn: make(chan *def.Event, 100), // TODO: add a parameter for the queue length
+		conn:       c,
+		chain:      chain,
+		queueIn:    make(chan *def.Event, 100), // TODO: add a parameter for the queue length
+		RetryDelay: time.Second,
 	}, nil
 }
 
-func (c *Client) Run(ctx context.Context) error {
-	if c.conn == nil {
-		return ErrNotConnected
+// Start manages connection to the server including restore connection until context is canceled.
+func (c *Client) Start(ctx context.Context) error {
+	if c.chain == nil {
+		return ErrNotInitialized
 	}
+	for {
+		c.RetryCounter.Add(1)
+		err := c.processStream(ctx)
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+		if err != nil {
+			slog.Debug("Stream error", "message", err)
+			time.Sleep(c.RetryDelay)
+		}
+	}
+}
+
+func (c *Client) processStream(ctx context.Context) error {
 	stream, err := c.chain.Do(ctx)
 	if err != nil {
 		return err
 	}
+	slog.Debug("Client called server", "addr", *serverAddr)
 	c.Connected.Store(true)
-	slog.Debug("Client connected to server", "addr", *serverAddr)
+	defer c.Connected.Store(false)
 
-	var wg sync.WaitGroup
+	readerError := make(chan error, 1)
+	writerError := make(chan error, 1)
+	stop := make(chan struct{})
+	defer close(stop)
 
 	// Loop to receive messages
-	wg.Add(1)
 	go func() {
-		defer wg.Done()
-		for {
-			in, err := stream.Recv()
-			// Check that higher context is not canceled
-			select {
-			case <-ctx.Done():
-				return
-			default:
+		receiveLoop := func() error {
+			for {
+				in, err := stream.Recv()
+				// Check that higher context is not canceled
+				select {
+				case <-ctx.Done():
+					return ctx.Err()
+				case <-stop:
+					return nil
+				default:
+				}
+				if err == io.EOF {
+					slog.Debug("Server closed the stream")
+					return err
+				}
+				// TODO: why it is not just EOF?
+				if status.Code(err) == codes.Unavailable {
+					slog.Debug("Server is unavailable", "err", err)
+					return err
+				}
+				if err != nil {
+					log.Fatalf("Error receiving message: %v", err)
+				}
+				// Process the received message
+				slog.Debug("Client get message", "message", in)
+				c.ReceivedCounter.Add(1)
 			}
-			if err == io.EOF {
-				log.Fatalln("Server closed the stream")
-				return
-			}
-			if err != nil {
-				log.Fatalln("Error receiving message:", err)
-				return
-			}
-			// Process the received message
-			slog.Debug("Client get message", "message", in)
-			c.ReceivedCounter.Add(1)
 		}
+		err = receiveLoop()
+		readerError <- err
 	}()
 
 	// Loop to send messages.
-	wg.Add(1)
 	go func() {
-		defer wg.Done()
-		// TODO: should this error be handled?
-		defer stream.CloseSend()
-		for {
-			select {
-			// TODO: good?
-			case in, good := <-c.queueIn:
-				if !good {
-					slog.Debug("Send closed by request")
-					return
+		writerLoop := func() error {
+			defer slog.Debug("Exiting write loop")
+			// TODO: should this error be handled?
+			defer stream.CloseSend()
+			for {
+				select {
+				case <-ctx.Done():
+					slog.Debug("Send cancelled by context")
+					return ctx.Err()
+				case <-stop:
+					return nil
+				case in, good := <-c.queueIn:
+					if !good {
+						slog.Debug("Send closed by request")
+						return errors.New("service closed")
+					}
+					slog.Debug("Sending event", "in", in)
+					err := stream.Send(in)
+					if err == io.EOF {
+						slog.Debug("Client disconnected from server")
+						return err
+					}
+					if err != nil {
+						log.Fatalln("failed to send the message, error:", err)
+					}
+					c.SentCounter.Add(1)
 				}
-				slog.Debug("Sending event", "in", in)
-				err := stream.Send(in)
-				if err == io.EOF {
-					// TODO: retry? what is expected now: recreate clent or call Do again?
-					log.Fatalln("Client disconnected from server")
-					return
-				}
-				if err != nil {
-					log.Fatalln("failed to send the message, error:", err)
-				}
-				c.SentCounter.Add(1)
-			case <-ctx.Done():
-				slog.Debug("Send cancelled by context")
-				return
 			}
 		}
+		err = writerLoop()
+		writerError <- err
 	}()
 
-	// Wait for both send and receive to finish
-	wg.Wait()
-	return nil
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case err := <-readerError:
+		return err
+	case err := <-writerError:
+		return err
+	}
 }
 
 func (c *Client) SendAndReceive(in *def.Event_StatusRequest, out *def.Event_StatusResponse) error {
 	if c.chain == nil {
-		return ErrNotConnected
+		return ErrNotInitialized
 	}
 	msg := &def.Event{
 		CallId:  &def.CallId{Id: "abc"},

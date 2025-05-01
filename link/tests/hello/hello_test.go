@@ -1,6 +1,7 @@
 package hello
 
 import (
+	"context"
 	"log/slog"
 	"testing"
 	"time"
@@ -21,7 +22,13 @@ func TestOnlyClient(t *testing.T) {
 	require.NoError(t, err)
 	defer c.Close()
 
-	require.EqualError(t, c.Run(r.Ctx), "rpc error: code = Unavailable desc = connection error: desc = \"transport: Error while dialing: dial tcp [::1]:50051: connect: connection refused\"")
+	c.RetryDelay = 100 * time.Millisecond
+
+	ctx, cancel := context.WithTimeout(r.Ctx, 3*time.Second)
+	defer cancel()
+	require.Error(t, c.Start(ctx))
+	//, "rpc error: code = Unavailable desc = connection error: desc = \"transport: Error while dialing: dial tcp [::1]:50051: connect: connection refused\"")
+	require.EqualValues(t, 31, int(c.RetryCounter.Load()))
 }
 
 // Validate that client and server can exchange messages
@@ -39,10 +46,10 @@ func TestRunHello(t *testing.T) {
 	r.WaitDone.Add(1)
 	go func() {
 		defer r.WaitDone.Done()
-		require.NoError(t, c.Run(r.Ctx))
+		require.ErrorIs(t, context.Canceled, c.Start(r.Ctx))
 	}()
 
-	// Wait for the client to connect. It is necessary, to avoid error from c.Run()
+	// Wait for the client to connect. It is necessary, to avoid error from c.Start()
 	require.NoError(t, r.WaitFor(func() bool {
 		return c.Connected.Load()
 	}))
@@ -62,4 +69,58 @@ func TestRunHello(t *testing.T) {
 	require.NoError(t, r.WaitFor(func() bool {
 		return c.ReceivedCounter.Load() > 0
 	}))
+}
+
+func TestRetry(t *testing.T) {
+	r := tests.Setup(t).WithTimeout(5 * time.Second)
+	defer r.Close()
+
+	s := serverfixture.Fixture{}
+	require.NoError(t, s.StartServer(r.Ctx, &r.WaitDone))
+
+	c, err := link.NewClient()
+	require.NoError(t, err)
+	defer c.Close()
+
+	r.WaitDone.Add(1)
+	go func() {
+		defer r.WaitDone.Done()
+		require.ErrorIs(t, context.Canceled, c.Start(r.Ctx))
+	}()
+
+	//Wait for the client to connect. It is necessary, to avoid error from c.Start()
+	require.NoError(t, r.WaitFor(func() bool {
+		return c.Connected.Load()
+	}))
+	slog.Debug("Connected")
+
+	s.Server.Kill()
+
+	//Client should indicate that it is disconnected.
+	require.NoError(t, r.WaitFor(func() bool {
+		return !c.Connected.Load()
+	}))
+	slog.Debug("Disconnected")
+
+	require.NoError(t, s.StartServer(r.Ctx, &r.WaitDone))
+	require.NoError(t, r.WaitFor(func() bool {
+		return c.Connected.Load()
+	}))
+	slog.Debug("Back online")
+
+	req := &def.Event_StatusRequest{}
+	resp := &def.Event_StatusResponse{}
+	require.NoError(t, c.SendAndReceive(req, resp))
+	require.Equal(t, uint64(1), c.AcceptedCounter.Load())
+
+	// Wait for the increment of sent counter.
+	require.NoError(t, r.WaitFor(func() bool {
+		return c.SentCounter.Load() == 1
+	}))
+	slog.Debug("Sent")
+
+	require.NoError(t, r.WaitFor(func() bool {
+		return c.ReceivedCounter.Load() == 1
+	}))
+	slog.Debug("Received")
 }

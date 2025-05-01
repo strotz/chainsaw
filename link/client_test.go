@@ -18,7 +18,7 @@ func TestCompileClient(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	// TODO: it should be another set of test to cover Run function
+	// TODO: it should be another set of test to cover Start function
 	c := NewMockChainClient(ctrl)
 	cli.chain = c
 
