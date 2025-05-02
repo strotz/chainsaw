@@ -1,0 +1,26 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "sim",
+    srcs = ["sim.go"],
+    importpath = "github.com/strotz/chainsaw/link/sim",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//link/def",
+        "@com_github_stretchr_testify//require",
+        "@org_golang_google_grpc//:grpc",
+        "@org_golang_google_grpc//metadata",
+        "@org_golang_google_protobuf//proto",
+    ],
+)
+
+go_test(
+    name = "sim_test",
+    size = "small",
+    srcs = ["sim_test.go"],
+    embed = [":sim"],
+    deps = [
+        "//link/def",
+        "@com_github_stretchr_testify//require",
+    ],
+)
