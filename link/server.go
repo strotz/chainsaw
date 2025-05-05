@@ -7,6 +7,7 @@ import (
 	"log"
 	"log/slog"
 	"net"
+	"sync/atomic"
 
 	"github.com/strotz/chainsaw/link/def"
 	"google.golang.org/grpc"
@@ -20,7 +21,10 @@ type Server struct {
 	x def.ChainServer
 }
 
-type imp struct{}
+type imp struct {
+	received atomic.Int64
+	sent     atomic.Int64
+}
 
 func (i *imp) Do(server def.Chain_DoServer) error {
 	for {
@@ -34,17 +38,21 @@ func (i *imp) Do(server def.Chain_DoServer) error {
 			return err
 		}
 		slog.Debug("Received by server", "in", in)
+		i.received.Add(1)
 		// TODO: this is dirty hack to make hello test meaningful
 		if x := in.GetEvent().GetStatusRequest(); x != nil {
 			y := def.MakeEnvelope(in.CallId.Id,
 				&def.Event_StatusResponse{
 					StatusResponse: &def.StatusResponse{
+						ReceivedMessagesCounter: i.received.Load(),
+						SentMessagesCounter:     i.sent.Load(),
 					},
 				},
 			)
 			if err := server.Send(y); err != nil {
 				return err
 			}
+			i.sent.Add(1)
 		}
 	}
 }

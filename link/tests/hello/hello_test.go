@@ -72,6 +72,8 @@ func TestRunHello(t *testing.T) {
 
 	slog.Debug("Received", "resp", resp)
 	require.NotNil(t, resp.GetStatusResponse())
+	require.Equal(t, int64(1), resp.GetStatusResponse().ReceivedMessagesCounter)
+	require.Equal(t, int64(0), resp.GetStatusResponse().SentMessagesCounter)
 }
 
 func TestRetry(t *testing.T) {
