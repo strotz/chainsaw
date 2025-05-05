@@ -28,12 +28,13 @@ type Client struct {
 	conn            *grpc.ClientConn
 	chain           def.ChainClient
 	Connected       atomic.Bool // true if connected to server
-	queueIn         chan *def.Event
+	queueIn         chan *def.Envelope
 	AcceptedCounter atomic.Uint64
 	SentCounter     atomic.Uint64
 	ReceivedCounter atomic.Uint64
 	RetryCounter    atomic.Uint64
 	RetryDelay      time.Duration
+	recipients      *table
 }
 
 var ErrNotInitialized = errors.New("connection not initialized")
@@ -50,8 +51,9 @@ func NewClient() (*Client, error) {
 	return &Client{
 		conn:       c,
 		chain:      chain,
-		queueIn:    make(chan *def.Event, 100), // TODO: add a parameter for the queue length
+		queueIn:    make(chan *def.Envelope, 100), // TODO: add a parameter for the queue length
 		RetryDelay: time.Second,
+		recipients: newTable(),
 	}, nil
 }
 
@@ -60,6 +62,7 @@ func (c *Client) Start(ctx context.Context) error {
 	if c.chain == nil {
 		return ErrNotInitialized
 	}
+	go c.recipients.run()
 	for {
 		c.RetryCounter.Add(1)
 		err := c.processStream(ctx)
@@ -117,6 +120,7 @@ func (c *Client) processStream(ctx context.Context) error {
 				// Process the received message
 				slog.Debug("Client get message", "message", in)
 				c.ReceivedCounter.Add(1)
+				c.recipients.post(in.CallId.Id, in.GetEvent())
 			}
 		}
 		err = receiveLoop()
@@ -168,17 +172,36 @@ func (c *Client) processStream(ctx context.Context) error {
 	}
 }
 
-func (c *Client) SendAndReceive(in *def.Event_StatusRequest, out *def.Event_StatusResponse) error {
+// SendAndReceive sends a message to the server and waits for a response.
+func (c *Client) SendAndReceive(ctx context.Context, in *def.Event, out **def.Event) error {
 	if c.chain == nil {
 		return ErrNotInitialized
 	}
-	msg := &def.Event{
-		CallId:  &def.CallId{Id: "abc"},
-		Payload: in,
+	var err error
+	*out, err = c.sendAndRecv(ctx, "random string", in)
+	return err
+}
+
+func (c *Client) sendAndRecv(ctx context.Context, id string, in *def.Event) (*def.Event, error) {
+	msg := &def.Envelope{
+		CallId: &def.CallId{Id: id},
+		Event:  in,
 	}
+
+	// TODO: how we are going to deal with multiple (idempotent messages). Pick first?
+	sub := make(chan *def.Event, 1)
+	c.recipients.addRecipient(ctx, id, sub)
+
 	c.queueIn <- msg
 	c.AcceptedCounter.Add(1)
-	return nil
+
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	case out := <-sub:
+		slog.Debug("Received event", "event", out)
+		return out, nil
+	}
 }
 
 func (c *Client) Close() error {

@@ -26,7 +26,7 @@ const (
 
 type item struct {
 	d Direction
-	v *def.Event
+	v *def.Envelope
 }
 
 type zeroClientStream struct{}
@@ -69,7 +69,7 @@ type sequenceSim struct {
 
 type SequenceSim interface {
 	def.ChainClient
-	Add(direction Direction, v *def.Event)
+	Add(direction Direction, v *def.Envelope)
 	IsDone() bool
 }
 
@@ -84,20 +84,20 @@ func (s *sequenceSim) Do(ctx context.Context, opts ...grpc.CallOption) (def.Chai
 	return s, nil
 }
 
-func (s *sequenceSim) Send(event *def.Event) error {
+func (s *sequenceSim) Send(e *def.Envelope) error {
 	s.cond.L.Lock()
 	defer s.cond.L.Unlock()
 	s.require.NotEmpty(s.items)
 	x := s.items[0]
 	s.require.Equal(ClientSend, x.d)
 
-	s.require.True(proto.Equal(event, x.v), "Sent: %v, Expected: %v", event, x.v)
+	s.require.True(proto.Equal(e, x.v), "Sent: %v, Expected: %v", e, x.v)
 	s.items = s.items[1:]
 	s.cond.Broadcast()
 	return nil
 }
 
-func (s *sequenceSim) Recv() (*def.Event, error) {
+func (s *sequenceSim) Recv() (*def.Envelope, error) {
 	s.cond.L.Lock()
 	defer s.cond.L.Unlock()
 	for {
@@ -116,7 +116,7 @@ func (s *sequenceSim) Recv() (*def.Event, error) {
 	}
 }
 
-func (s *sequenceSim) Add(direction Direction, e *def.Event) {
+func (s *sequenceSim) Add(direction Direction, e *def.Envelope) {
 	s.items = append(s.items, &item{d: direction, v: e})
 }
 

@@ -1,11 +1,11 @@
 load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
-load("//build/rules:gomock.bzl", "gomock")
 
 go_library(
     name = "link",
     srcs = [
         "client.go",
         "server.go",
+        "table.go",
     ],
     importpath = "github.com/strotz/chainsaw/link",
     visibility = ["//visibility:public"],
@@ -18,28 +18,19 @@ go_library(
     ],
 )
 
-gomock(
-    name = "transport_client_mocks",
-    out = "transport_client_test.go",
-    interfaces = ["ChainClient"],
-    library = "//link/def",
-    package = "link",
-    visibility = ["//visibility:public"],
-)
-
 go_test(
     name = "link_test",
     size = "small",
     srcs = [
         "client_test.go",
         "server_test.go",
-        "transport_client_test.go",
+        "table_test.go",
     ],
     embed = [":link"],
     deps = [
         "//link/def",
+        "//link/sim",
         "@com_github_stretchr_testify//require",
-        "@org_golang_google_grpc//:grpc",  #keep
-        "@org_uber_go_mock//gomock",
+        "@org_golang_google_protobuf//proto",
     ],
 )

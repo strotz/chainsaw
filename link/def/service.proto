@@ -18,7 +18,6 @@ message StatusRequest {}
 message StatusResponse {}
 
 message Event {
-  CallId call_id = 1;
   oneof payload {
     NoOp no_op = 2;
     StatusRequest status_request = 3;
@@ -26,7 +25,12 @@ message Event {
   }
 }
 
+message Envelope {
+  CallId call_id = 1;
+  Event event = 2;
+}
+
 // It is generic bi-directional streaming.
 service Chain {
-  rpc Do(stream Event) returns (stream Event) {}
+  rpc Do(stream Envelope) returns (stream Envelope) {}
 }

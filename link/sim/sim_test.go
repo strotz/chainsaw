@@ -28,19 +28,19 @@ func TestCreate(t *testing.T) {
 func TestAddClientSend(t *testing.T) {
 	initTest()
 	s := NewSequenceSim(t)
-	s.Add(ClientSend, &def.Event{})
+	s.Add(ClientSend, &def.Envelope{})
 	require.False(t, s.IsDone())
 }
 
 func TestPlayClientSend(t *testing.T) {
 	initTest()
 	s := NewSequenceSim(t)
-	s.Add(ClientSend, &def.Event{})
+	s.Add(ClientSend, &def.Envelope{})
 
 	stream, err := s.Do(context.TODO())
 	require.NoError(t, err)
 
-	require.NoError(t, stream.Send(&def.Event{}))
+	require.NoError(t, stream.Send(&def.Envelope{}))
 	require.True(t, s.IsDone())
 }
 
@@ -49,13 +49,13 @@ func TestPlayClientSendFailed(t *testing.T) {
 
 	initTest()
 	s := NewSequenceSim(t)
-	s.Add(ClientSend, &def.Event{})
+	s.Add(ClientSend, &def.Envelope{})
 
 	stream, err := s.Do(context.TODO())
 	require.NoError(t, err)
 
-	require.NoError(t, stream.Send(&def.Event{
-		Payload: &def.Event_StatusRequest{},
+	require.NoError(t, stream.Send(&def.Envelope{
+		Event: &def.Event{},
 	}))
 	require.True(t, s.IsDone())
 }
@@ -63,7 +63,7 @@ func TestPlayClientSendFailed(t *testing.T) {
 func TestPlayClientRecv(t *testing.T) {
 	initTest()
 	s := NewSequenceSim(t)
-	s.Add(ClientRecv, &def.Event{
+	s.Add(ClientRecv, &def.Envelope{
 		CallId: &def.CallId{
 			Id: "test",
 		},
@@ -75,7 +75,7 @@ func TestPlayClientRecv(t *testing.T) {
 
 	x, err := stream.Recv()
 	require.NoError(t, err)
-	require.EqualValues(t, &def.Event{
+	require.EqualValues(t, &def.Envelope{
 		CallId: &def.CallId{
 			Id: "test",
 		},
@@ -86,13 +86,12 @@ func TestPlayClientRecv(t *testing.T) {
 func TestPlayClientRecvAfterSend(t *testing.T) {
 	initTest()
 	s := NewSequenceSim(t)
-	s.Add(ClientSend, &def.Event{
+	s.Add(ClientSend, &def.Envelope{
 		CallId: &def.CallId{
 			Id: "test_send",
 		},
-		Payload: &def.Event_StatusRequest{},
 	})
-	s.Add(ClientRecv, &def.Event{
+	s.Add(ClientRecv, &def.Envelope{
 		CallId: &def.CallId{
 			Id: "test_recv",
 		},
@@ -101,15 +100,14 @@ func TestPlayClientRecvAfterSend(t *testing.T) {
 	stream, err := s.Do(context.TODO())
 	require.NoError(t, err)
 
-	require.NoError(t, stream.Send(&def.Event{
+	require.NoError(t, stream.Send(&def.Envelope{
 		CallId: &def.CallId{
 			Id: "test_send",
 		},
-		Payload: &def.Event_StatusRequest{},
 	}))
 	x, err := stream.Recv()
 	require.NoError(t, err)
-	require.EqualValues(t, &def.Event{
+	require.EqualValues(t, &def.Envelope{
 		CallId: &def.CallId{
 			Id: "test_recv",
 		},

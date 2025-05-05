@@ -1,28 +1,47 @@
 package link
 
 import (
+	"context"
+	"io"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 	"github.com/strotz/chainsaw/link/def"
-	"go.uber.org/mock/gomock"
+	"github.com/strotz/chainsaw/link/sim"
+	"google.golang.org/protobuf/proto"
 )
 
-var _ def.ChainClient = (*MockChainClient)(nil)
-
 func TestCompileClient(t *testing.T) {
-	cli := &Client{
-		queueIn: make(chan *def.Event, 1), // To unblock SendAndReceive
-	}
+	initTest()
 
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
+	cli := &Client{
+		queueIn:    make(chan *def.Envelope, 1), // To unblock SendAndReceive
+		recipients: newTable(),
+	}
+	// TODO: start in real code
+	go cli.recipients.run()
+
+	s := sim.NewSequenceSim(t)
+	s.Add(sim.ClientSend, def.MakeEnvelope("test", &def.Event_StatusRequest{}))
+	s.Add(sim.ClientRecv, def.MakeEnvelope("test", &def.Event_StatusResponse{}))
+	cli.chain = s
 
 	// TODO: it should be another set of test to cover Start function
-	c := NewMockChainClient(ctrl)
-	cli.chain = c
 
-	in := &def.Event_StatusRequest{}
-	out := &def.Event_StatusResponse{}
-	require.NoError(t, cli.SendAndReceive(in, out))
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		require.ErrorIs(t, cli.processStream(context.TODO()), io.EOF)
+	}()
+
+	out, err := cli.sendAndRecv(context.TODO(), "test", def.MakeEvent(&def.Event_StatusRequest{}))
+	require.NoError(t, err)
+	require.True(t, proto.Equal(out, def.MakeEvent(&def.Event_StatusResponse{})), "out: %v", out)
+
+	wg.Wait()
+
+	require.True(t, s.IsDone())
+	cli.recipients.stop()
 }

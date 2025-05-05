@@ -55,9 +55,9 @@ func TestRunHello(t *testing.T) {
 	}))
 	slog.Debug("Connected")
 
-	req := &def.Event_StatusRequest{}
-	resp := &def.Event_StatusResponse{}
-	require.NoError(t, c.SendAndReceive(req, resp))
+	req := def.MakeEvent(&def.Event_StatusRequest{})
+	resp := def.MakeEvent(&def.Event_StatusResponse{})
+	require.NoError(t, c.SendAndReceive(r.Ctx, req, &resp))
 	require.Equal(t, uint64(1), c.AcceptedCounter.Load())
 
 	// Wait for the increment of sent counter.
@@ -69,6 +69,9 @@ func TestRunHello(t *testing.T) {
 	require.NoError(t, r.WaitFor(func() bool {
 		return c.ReceivedCounter.Load() > 0
 	}))
+
+	slog.Debug("Received", "resp", resp)
+	require.NotNil(t, resp.GetStatusResponse())
 }
 
 func TestRetry(t *testing.T) {
@@ -108,9 +111,9 @@ func TestRetry(t *testing.T) {
 	}))
 	slog.Debug("Back online")
 
-	req := &def.Event_StatusRequest{}
-	resp := &def.Event_StatusResponse{}
-	require.NoError(t, c.SendAndReceive(req, resp))
+	req := def.MakeEvent(&def.Event_StatusRequest{})
+	resp := def.MakeEvent(&def.Event_StatusResponse{})
+	require.NoError(t, c.SendAndReceive(r.Ctx, req, &resp))
 	require.Equal(t, uint64(1), c.AcceptedCounter.Load())
 
 	// Wait for the increment of sent counter.
