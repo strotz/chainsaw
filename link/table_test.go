@@ -1,7 +1,6 @@
 package link
 
 import (
-	"context"
 	"log/slog"
 	"os"
 	"testing"
@@ -33,7 +32,7 @@ func TestTableAddListener(t *testing.T) {
 	defer ta.stop()
 
 	in := make(chan *def.Event)
-	ta.addRecipient(context.TODO(), "test", in)
+	ta.addRecipient("test", in)
 	require.Equal(t, 1, ta.length())
 }
 
@@ -44,7 +43,7 @@ func TestTableRemoveListener(t *testing.T) {
 	defer ta.stop()
 
 	in := make(chan *def.Event)
-	ta.addRecipient(context.TODO(), "test", in)
+	ta.addRecipient("test", in)
 	ta.remove("test")
 
 	require.Equal(t, 0, ta.length())
@@ -59,7 +58,7 @@ func TestTablePublishEvent(t *testing.T) {
 
 	// Need to buffer the response
 	in := make(chan *def.Event, 1)
-	ta.addRecipient(context.TODO(), "test", in)
+	ta.addRecipient("test", in)
 	ta.post("test", &def.Event{})
 	require.Equal(t, 0, ta.length())
 	res := <-in
@@ -75,7 +74,7 @@ func TestTablePublishNoRecipient(t *testing.T) {
 	defer ta.stop()
 
 	in := make(chan *def.Event)
-	ta.addRecipient(context.TODO(), "test", in)
+	ta.addRecipient("test", in)
 	ta.post("test1", &def.Event{})
 	require.Equal(t, 1, ta.length())
 }

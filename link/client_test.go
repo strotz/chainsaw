@@ -19,7 +19,6 @@ func TestCompileClient(t *testing.T) {
 		queueIn:    make(chan *def.Envelope, 1), // To unblock SendAndReceive
 		recipients: newTable(),
 	}
-	// TODO: start in real code
 	go cli.recipients.run()
 
 	s := sim.NewSequenceSim(t)

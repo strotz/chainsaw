@@ -14,3 +14,10 @@ func MakeEnvelope(id string, p isEvent_Payload) *Envelope {
 		Event: MakeEvent(p),
 	}
 }
+
+func WrapEvent(id string, e *Event) *Envelope {
+	return &Envelope{
+		CallId: &CallId{Id: id},
+		Event:  e,
+	}
+}

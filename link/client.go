@@ -190,16 +190,16 @@ func (c *Client) sendAndRecv(ctx context.Context, id string, in *def.Event) (*de
 
 	// TODO: how we are going to deal with multiple (idempotent messages). Pick first?
 	sub := make(chan *def.Event, 1)
-	c.recipients.addRecipient(ctx, id, sub)
+	c.recipients.addRecipient(id, sub)
 
 	c.queueIn <- msg
 	c.AcceptedCounter.Add(1)
 
 	select {
 	case <-ctx.Done():
+		c.recipients.remove(id)
 		return nil, ctx.Err()
 	case out := <-sub:
-		slog.Debug("Received event", "event", out)
 		return out, nil
 	}
 }

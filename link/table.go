@@ -1,7 +1,6 @@
 package link
 
 import (
-	"context"
 	"log/slog"
 
 	"github.com/strotz/chainsaw/link/def"
@@ -44,10 +43,8 @@ func newTable() *table {
 }
 
 // TODO: should it be keyed by payload type?
-// TODO: how to process context cancellations and timeouts? Periodical scan or scan triggered by notification?
-//
 
-func (t *table) addRecipient(ctx context.Context, id string, sub chan<- *def.Event) {
+func (t *table) addRecipient(id string, sub chan<- *def.Event) {
 	t.addCh <- &tableItem{
 		id:  id,
 		sub: sub,
@@ -58,7 +55,6 @@ func (t *table) remove(id string) {
 	t.removeCh <- id
 }
 
-// TODO: why not Envelope?
 func (t *table) post(id string, payload *def.Event) {
 	slog.Debug("posting event", "id", id, "payload", payload)
 	t.notifyCh <- &idAndValue{
