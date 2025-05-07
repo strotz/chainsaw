@@ -9,6 +9,7 @@ go_test(
     ],
     deps = [
         "//link",
+        "//link/clientfixture",
         "//link/def",
         "//link/serverfixture",
         "//link/tests",

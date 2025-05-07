@@ -1,0 +1,14 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "clientfixture",
+    srcs = ["clientfixture.go"],
+    importpath = "github.com/strotz/chainsaw/link/clientfixture",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//link",
+        "//link/def",
+        "//link/tests",
+        "@com_github_stretchr_testify//require",
+    ],
+)
