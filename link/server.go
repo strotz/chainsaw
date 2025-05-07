@@ -39,9 +39,12 @@ func (i *imp) Do(server def.Chain_DoServer) error {
 		}
 		slog.Debug("Received by server", "in", in)
 		i.received.Add(1)
-		// TODO: this is dirty hack to make hello test meaningful
-		if x := in.GetEvent().GetStatusRequest(); x != nil {
-			y := def.MakeEnvelope(in.CallId.Id,
+
+		var response *def.Event
+		switch in.GetEvent().Payload.(type) {
+		case *def.Event_StatusRequest:
+			log.Println("Event:Status Request")
+			response = def.MakeEvent(
 				&def.Event_StatusResponse{
 					StatusResponse: &def.StatusResponse{
 						ReceivedMessagesCounter: i.received.Load(),
@@ -49,7 +52,12 @@ func (i *imp) Do(server def.Chain_DoServer) error {
 					},
 				},
 			)
-			if err := server.Send(y); err != nil {
+		default:
+			response = nil
+		}
+		if response != nil {
+			out := def.WrapEvent(in.CallId.Id, response)
+			if err := server.Send(out); err != nil {
 				return err
 			}
 			i.sent.Add(1)
