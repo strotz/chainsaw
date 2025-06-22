@@ -22,4 +22,5 @@ func main() {
 	}
 	log.Println("Server started...")
 	<-done // Wait for ctrl+c
+	log.Println("Server stopped")
 }

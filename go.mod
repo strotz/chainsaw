@@ -4,10 +4,10 @@ go 1.24.2
 
 require (
 	github.com/stretchr/testify v1.10.0
-	github.com/strotz/runner v0.0.0-20250424165741-a7979b33449b
 	go.uber.org/mock v0.4.0
 	google.golang.org/grpc v1.71.1
 	google.golang.org/protobuf v1.36.6
+	github.com/strotz/runner v0.0.1
 )
 
 require (

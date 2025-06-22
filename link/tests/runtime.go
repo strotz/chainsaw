@@ -20,6 +20,7 @@ type Runtime struct {
 	Ctx      context.Context
 	Cancel   context.CancelFunc
 	WaitDone sync.WaitGroup
+	name     string
 }
 
 func Setup(t *testing.T) *Runtime {
@@ -32,8 +33,11 @@ func Setup(t *testing.T) *Runtime {
 	tmpDir := filepath.Join(bazel.TestTmpDir(), t.Name())
 	require.NoError(t, os.MkdirAll(tmpDir, fs.FileMode(0755)))
 
-	r := &Runtime{}
+	r := &Runtime{
+		name: t.Name(),
+	}
 	r.Ctx, r.Cancel = context.WithCancel(context.Background())
+	slog.Debug("---------TEST:", "name", r.name)
 	return r
 }
 
@@ -45,6 +49,7 @@ func (r *Runtime) WithTimeout(timeout time.Duration) *Runtime {
 func (r *Runtime) Close() {
 	r.Cancel()
 	r.WaitDone.Wait()
+	slog.Debug("---------STOP:", "name", r.name)
 }
 
 // WaitFor periodically executes p until it returns true.

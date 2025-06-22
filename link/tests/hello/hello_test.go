@@ -31,6 +31,16 @@ func TestOnlyClient(t *testing.T) {
 	require.EqualValues(t, 31, int(c.RetryCounter.Load()))
 }
 
+// Validate that server can be started and stopped
+func TestStartStopServer(t *testing.T) {
+	r := tests.Setup(t).WithTimeout(10 * time.Second)
+	defer r.Close()
+
+	s := serverfixture.Fixture{}
+	require.NoError(t, s.StartServer(r.Ctx, &r.WaitDone))
+	require.NoError(t, s.SoftStop(r.Ctx))
+}
+
 // Validate that client and server can exchange messages
 func TestRunHello(t *testing.T) {
 	r := tests.Setup(t).WithTimeout(5 * time.Second)
@@ -88,7 +98,7 @@ func TestRetry(t *testing.T) {
 	}))
 	slog.Debug("Connected")
 
-	s.Server.Kill()
+	require.NoError(t, s.SoftStop(r.Ctx))
 
 	//Client should indicate that it is disconnected.
 	require.NoError(t, r.WaitFor(func() bool {

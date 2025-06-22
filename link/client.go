@@ -114,6 +114,11 @@ func (c *Client) processStream(ctx context.Context) error {
 					slog.Debug("Server is unavailable", "err", err)
 					return err
 				}
+				// TODO: Check if the server canceled the stream
+				if status.Code(err) == codes.Canceled {
+					slog.Debug("Server canceled the stream", "err", err)
+					return err
+				}
 				if err != nil {
 					log.Fatalf("Error receiving message: %v", err)
 				}

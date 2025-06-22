@@ -2,7 +2,9 @@ package serverfixture
 
 import (
 	"context"
+	"errors"
 	"log/slog"
+	"os"
 	"sync"
 
 	"github.com/bazelbuild/rules_go/go/runfiles"
@@ -13,10 +15,9 @@ type Fixture struct {
 	Server *runner.Process // Server process
 }
 
-// StartServer starts the server process and exits. It doesn't wait for the
-// server to be ready. waitDone is used to signal when the server is started and
-// ready to process.
-func (f *Fixture) StartServer(ctx context.Context, waitDone *sync.WaitGroup) error {
+// StartServer starts the server process and exits. It is expected that the server will run in the background. serverStopped
+// is used to signal that the server is stopped, and it is safe to exit the test.
+func (f *Fixture) StartServer(ctx context.Context, serverStopped *sync.WaitGroup) error {
 	l, err := runfiles.Rlocation("chainsaw/link/server/server_/server")
 	if err != nil {
 		return err
@@ -29,5 +30,16 @@ func (f *Fixture) StartServer(ctx context.Context, waitDone *sync.WaitGroup) err
 		return err
 	}
 	f.Server = app
-	return app.RunWithMarker(ctx, waitDone, "Server started...")
+	return app.RunWithMarker(ctx, serverStopped, "Server started...")
+}
+
+// SoftStop sends a SIGINT signal to the process, which is a soft stop.
+func (f *Fixture) SoftStop(ctx context.Context) error {
+	if f.Server == nil {
+		return errors.New("server fixture is nil")
+	}
+	if err := f.Server.SendSignal(os.Interrupt); err != nil {
+		return err
+	}
+	return f.Server.StdErrScanner().WaitForKeyword(ctx, "Server stopped")
 }

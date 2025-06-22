@@ -7,8 +7,6 @@ go_library(
     visibility = ["//visibility:public"],
     deps = [
         "//link",
-        "//link/def",
         "//link/tests",
-        "@com_github_stretchr_testify//require",
     ],
 )
