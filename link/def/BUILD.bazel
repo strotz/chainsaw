@@ -19,7 +19,6 @@ go_proto_library(
 go_library(
     name = "def",
     srcs = [
-        "empty.go",
         "make.go",
     ],
     embed = [":def_go_proto"],
