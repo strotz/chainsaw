@@ -3,10 +3,9 @@ package clientfixture
 import (
 	"context"
 	"errors"
+	"log"
 	"log/slog"
-	"testing"
 
-	"github.com/stretchr/testify/require"
 	"github.com/strotz/chainsaw/link"
 	"github.com/strotz/chainsaw/link/tests"
 )
@@ -15,7 +14,7 @@ type Fixture struct {
 	Client *link.Client
 }
 
-func (f *Fixture) RunConnected(r *tests.Runtime, t *testing.T) error {
+func (f *Fixture) RunConnected(r *tests.Runtime) error {
 	if f.Client != nil {
 		return errors.New("client fixture already used")
 	}
@@ -29,7 +28,9 @@ func (f *Fixture) RunConnected(r *tests.Runtime, t *testing.T) error {
 	go func() {
 		defer r.WaitDone.Done()
 		err := c.Start(r.Ctx)
-		require.ErrorIs(t, context.Canceled, err)
+		if err != nil && !errors.Is(err, context.Canceled) {
+			log.Fatalln("Client exists with unexpected error", "err", err)
+		}
 	}()
 
 	// Wait for the client to connect. It is necessary, to avoid error from c.Start()

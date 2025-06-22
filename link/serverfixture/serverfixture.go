@@ -13,6 +13,9 @@ type Fixture struct {
 	Server *runner.Process // Server process
 }
 
+// StartServer starts the server process and exits. It doesn't wait for the
+// server to be ready. waitDone is used to signal when the server is started and
+// ready to process.
 func (f *Fixture) StartServer(ctx context.Context, waitDone *sync.WaitGroup) error {
 	l, err := runfiles.Rlocation("chainsaw/link/server/server_/server")
 	if err != nil {

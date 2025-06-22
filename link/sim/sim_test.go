@@ -21,20 +21,20 @@ var _ def.ChainClient = &sequenceSim{}
 
 func TestCreate(t *testing.T) {
 	initTest()
-	s := NewSequenceSim(t)
+	s := NewSequenceSim()
 	require.True(t, s.IsDone())
 }
 
 func TestAddClientSend(t *testing.T) {
 	initTest()
-	s := NewSequenceSim(t)
+	s := NewSequenceSim()
 	s.Add(ClientSend, &def.Envelope{})
 	require.False(t, s.IsDone())
 }
 
 func TestPlayClientSend(t *testing.T) {
 	initTest()
-	s := NewSequenceSim(t)
+	s := NewSequenceSim()
 	s.Add(ClientSend, &def.Envelope{})
 
 	stream, err := s.Do(context.TODO())
@@ -48,7 +48,7 @@ func TestPlayClientSendFailed(t *testing.T) {
 	t.Skip("intentionally failed test to demonstrate not expected Send")
 
 	initTest()
-	s := NewSequenceSim(t)
+	s := NewSequenceSim()
 	s.Add(ClientSend, &def.Envelope{})
 
 	stream, err := s.Do(context.TODO())
@@ -62,7 +62,7 @@ func TestPlayClientSendFailed(t *testing.T) {
 
 func TestPlayClientRecv(t *testing.T) {
 	initTest()
-	s := NewSequenceSim(t)
+	s := NewSequenceSim()
 	s.Add(ClientRecv, &def.Envelope{
 		CallId: &def.CallId{
 			Id: "test",
@@ -85,7 +85,7 @@ func TestPlayClientRecv(t *testing.T) {
 
 func TestPlayClientRecvAfterSend(t *testing.T) {
 	initTest()
-	s := NewSequenceSim(t)
+	s := NewSequenceSim()
 	s.Add(ClientSend, &def.Envelope{
 		CallId: &def.CallId{
 			Id: "test_send",

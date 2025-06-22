@@ -3,10 +3,9 @@ package sim
 import (
 	"context"
 	"io"
+	"log"
 	"sync"
-	"testing"
 
-	"github.com/stretchr/testify/require"
 	"github.com/strotz/chainsaw/link/def"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
@@ -61,9 +60,8 @@ func (s *zeroClientStream) RecvMsg(m any) error {
 }
 
 type sequenceSim struct {
-	require *require.Assertions
-	cond    sync.Cond
-	items   []*item
+	cond  sync.Cond
+	items []*item
 	zeroClientStream
 }
 
@@ -73,10 +71,9 @@ type SequenceSim interface {
 	IsDone() bool
 }
 
-func NewSequenceSim(t *testing.T) SequenceSim {
+func NewSequenceSim() SequenceSim {
 	return &sequenceSim{
-		require: require.New(t),
-		cond:    sync.Cond{L: &sync.Mutex{}},
+		cond: sync.Cond{L: &sync.Mutex{}},
 	}
 }
 
@@ -87,11 +84,16 @@ func (s *sequenceSim) Do(ctx context.Context, opts ...grpc.CallOption) (def.Chai
 func (s *sequenceSim) Send(e *def.Envelope) error {
 	s.cond.L.Lock()
 	defer s.cond.L.Unlock()
-	s.require.NotEmpty(s.items)
+	if len(s.items) == 0 {
+		log.Fatalf("No items to send")
+	}
 	x := s.items[0]
-	s.require.Equal(ClientSend, x.d)
-
-	s.require.True(proto.Equal(e, x.v), "Sent: %v, Expected: %v", e, x.v)
+	if x.d != ClientSend {
+		log.Fatal("Expected ClientSend, got", x.d)
+	}
+	if !proto.Equal(e, x.v) {
+		log.Fatalf("Sent: %v, Expected: %v", e, x.v)
+	}
 	s.items = s.items[1:]
 	s.cond.Broadcast()
 	return nil

@@ -3,6 +3,7 @@ package link
 import (
 	"context"
 	"io"
+	"log"
 	"sync"
 	"testing"
 
@@ -21,7 +22,7 @@ func TestCompileClient(t *testing.T) {
 	}
 	go cli.recipients.run()
 
-	s := sim.NewSequenceSim(t)
+	s := sim.NewSequenceSim()
 	s.Add(sim.ClientSend, def.MakeEnvelope("test", &def.Event_StatusRequest{}))
 	s.Add(sim.ClientRecv, def.MakeEnvelope("test", &def.Event_StatusResponse{}))
 	cli.chain = s
@@ -32,7 +33,9 @@ func TestCompileClient(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		require.ErrorIs(t, cli.processStream(context.TODO()), io.EOF)
+		if err := cli.processStream(context.TODO()); err != io.EOF {
+			log.Fatalf("expected EOF, got %v", err)
+		}
 	}()
 
 	out, err := cli.sendAndRecv(context.TODO(), "test", def.MakeEvent(&def.Event_StatusRequest{}))

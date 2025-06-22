@@ -39,24 +39,24 @@ func TestRunHello(t *testing.T) {
 	s := serverfixture.Fixture{}
 	require.NoError(t, s.StartServer(r.Ctx, &r.WaitDone))
 
-	cf := clientfixture.Fixture{}
-	err := cf.RunConnected(r, t)
+	client := clientfixture.Fixture{}
+	err := client.RunConnected(r)
 	require.NoError(t, err)
-	defer cf.Close()
+	defer client.Close()
 
 	req := def.MakeEvent(&def.Event_StatusRequest{})
 	resp := def.MakeEvent(&def.Event_StatusResponse{})
-	require.NoError(t, cf.Client.SendAndReceive(r.Ctx, req, &resp))
-	require.Equal(t, uint64(1), cf.Client.AcceptedCounter.Load())
+	require.NoError(t, client.Client.SendAndReceive(r.Ctx, req, &resp))
+	require.Equal(t, uint64(1), client.Client.AcceptedCounter.Load())
 
 	// Wait for the increment of sent counter.
 	require.NoError(t, r.WaitFor(func() bool {
-		return cf.Client.SentCounter.Load() > 0
+		return client.Client.SentCounter.Load() > 0
 	}))
 	slog.Debug("Sent")
 
 	require.NoError(t, r.WaitFor(func() bool {
-		return cf.Client.ReceivedCounter.Load() > 0
+		return client.Client.ReceivedCounter.Load() > 0
 	}))
 
 	slog.Debug("Received", "resp", resp)
@@ -128,7 +128,7 @@ func TestRequestTimeout(t *testing.T) {
 	require.NoError(t, s.StartServer(r.Ctx, &r.WaitDone))
 
 	cf := clientfixture.Fixture{}
-	err := cf.RunConnected(r, t)
+	err := cf.RunConnected(r)
 	require.NoError(t, err)
 	defer cf.Close()
 
